@@ -5,7 +5,7 @@ from pathlib import Path
 import base64
 
 # ------------------------
-# 🖼️ Personnalisation CSS
+# 🎨 Personnalisation CSS
 # ------------------------
 def inject_custom_css():
     st.markdown("""
@@ -40,11 +40,10 @@ def inject_custom_css():
     """, unsafe_allow_html=True)
 
 # ------------------------
-# 📊 Vérification du LinePlan
+# 🧠 Vérification du fichier
 # ------------------------
 def check_referentiel(file):
     errors = []
-    colonnes_attendues = ["CODEPSS", "CODECLIENT"]  # Ajoute ici les colonnes obligatoires si besoin
 
     try:
         with open_workbook(file) as wb:
@@ -61,30 +60,28 @@ def check_referentiel(file):
                 df.columns = df.iloc[0]
                 df = df[1:]
 
-                # 🔍 Vérif 1 : colonnes vides dans la ligne d'entête
-                header_row = data[0]
-                for idx, val in enumerate(header_row):
-                    if pd.isna(val) or str(val).strip() == "":
-                        errors.append(f"❌ En-tête vide détectée dans la colonne n°{idx+1}.")
+                # Vérifie que la ligne 1 (en-têtes) n'a pas de cellule vide
+                if any(pd.isna(data[0])):
+                    colonnes_vides = [i for i, val in enumerate(data[0]) if pd.isna(val)]
+                    errors.append(f"❌ Ligne 1 (entêtes) contient des colonnes vides aux positions : {colonnes_vides}")
 
-                # 🔍 Vérif 2 : noms de colonnes attendus
-                for col in colonnes_attendues:
-                    if col not in df.columns:
-                        errors.append(f"❌ Colonne obligatoire '{col}' manquante.")
-
-                # 🔍 Vérif 3 : cellules vides dans 'CODEPSS'
-                if 'CODEPSS' in df.columns:
+                # Vérifie colonne CODEPSS
+                if 'CODEPSS' not in df.columns:
+                    errors.append("❌ Colonne 'CODEPSS' manquante.")
+                else:
                     nb_vides = df['CODEPSS'].isna().sum()
                     if nb_vides > 0:
-                        lignes_vides = df[df['CODEPSS'].isna()].index + 2  # +2 car DataFrame commence à 0 + 1 ligne d'en-tête
-                        errors.append(f"❌ {nb_vides} cellule(s) vide(s) dans 'CODEPSS' (lignes : {list(lignes_vides)})")
+                        errors.append(f"❌ {nb_vides} cellule(s) vide(s) dans la colonne 'CODEPSS'.")
 
-                # 🔍 Vérif 4 : cellules vides dans 'CODECLIENT'
-                if 'CODECLIENT' in df.columns:
-                    nb_vide_client = df['CODECLIENT'].isna().sum()
-                    if nb_vide_client > 0:
-                        lignes_vides_client = df[df['CODECLIENT'].isna()].index + 2
-                        errors.append(f"❌ {nb_vide_client} cellule(s) vide(s) dans 'CODECLIENT' (lignes : {list(lignes_vides_client)})")
+                # Vérifie colonne CODECLIENT
+                if 'CODECLIENT' not in df.columns:
+                    errors.append("❌ Colonne 'CODECLIENT' manquante ou mal orthographiée.")
+                else:
+                    vides_codeclient = df[df['CODECLIENT'].isna()]
+                    if not vides_codeclient.empty:
+                        lignes_vides = vides_codeclient.index.tolist()
+                        lignes_affichage = [i + 2 for i in lignes_vides]  # +2 car index commence à 0 et ligne 1 = entêtes
+                        errors.append(f"❌ Cellules vides dans la colonne 'CODECLIENT' aux lignes : {lignes_affichage}")
 
     except Exception as e:
         errors.append(f"Erreur lors de l'analyse : {e}")
@@ -92,7 +89,7 @@ def check_referentiel(file):
     return errors
 
 # ------------------------
-# 🚀 Logo Carrefour affiché au centre et estompé
+# 🖼️ Logo Carrefour Centré
 # ------------------------
 def add_logo_centered_faded(image_path, width=150, opacity=0.6):
     with open(image_path, "rb") as img_file:
@@ -107,23 +104,19 @@ def add_logo_centered_faded(image_path, width=150, opacity=0.6):
         )
 
 # ------------------------
-# 🚀 Page principale
+# 🚀 App principale
 # ------------------------
-
 inject_custom_css()
 
-# Affiche le logo Carrefour
 logo_path = Path("carrefour_logo.png")
 if logo_path.exists():
     add_logo_centered_faded(logo_path)
 else:
     st.error("Logo Carrefour introuvable.")
 
-# Titre principal
 st.markdown('<div class="title">Vérification LinePlan</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Service Textile - Carrefour</div>', unsafe_allow_html=True)
 
-# Upload du fichier
 uploaded_file = st.file_uploader("📥 Uploadez un fichier LinePlan (.xlsb)", type="xlsb")
 
 if uploaded_file:
